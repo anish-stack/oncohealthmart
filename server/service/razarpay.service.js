@@ -27,7 +27,7 @@ class CreateOrderRazorpay {
 
             return order;
         } catch (error) {
-            console.error('Error creating Razorpay order:', error.message);
+            console.error('Error creating Razorpay order:', error);
             throw new Error('Error creating Razorpay order');
         }
     }

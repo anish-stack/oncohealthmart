@@ -212,7 +212,7 @@ exports.resendOtp = async (req, res) => {
 
         await Pool.execute(updateStatusSql, [generateOtp, otpExpiresAt, userId]);
 
-        res.status(200).json({ message: 'OTP resent successfully.' });
+        res.status(200).json({ message: 'OTP resent successfully.',otp:generateOtp });
 
 
     } catch (error) {
@@ -269,8 +269,8 @@ exports.forgotPassword = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        const { mobile, password } = req.body;
-        console.log(req.body)
+        const { mobile } = req.body;
+
         const userCheckSql = `
             SELECT * FROM cp_customer
             WHERE mobile = ?
@@ -285,17 +285,42 @@ exports.login = async (req, res) => {
         if (user.status === 'Inactive') {
             return res.status(401).json({ message: 'Please Verify Your Mobile Number To Login Your Account' });
         }
-        const hashedPassword = crypto.createHash('sha1').update(password).digest('hex');
-        if (user.password !== hashedPassword) {
-            return res.status(401).json({ message: 'Incorrect password.' });
+
+        const otpService = new OtpService();
+        const generateOtp = crypto.randomInt(100000, 999999);
+        const currentTime = new Date();
+        const otpExpiresAt = new Date(currentTime.getTime() + 5 * 60 * 1000);
+
+        console.log('Generated OTP:', generateOtp + ' And Expiry:', otpExpiresAt);
+
+        try {
+            await otpService.sendOtp(`+91${mobile}`, 'RegistrationConfirmation', generateOtp);
+            console.log('OTP sent successfully');
+        } catch (err) {
+            console.error('Error sending OTP:', err.message);
+            return res.status(500).json({ message: 'Error sending OTP. Please try again later.' });
         }
-        await sendToken(user, res, 201)
+
+        const updateStatusSql = `
+        UPDATE cp_customer
+        SET otp = ?, otp_expires = ?
+        WHERE customer_id = ?
+        `;
+        await Pool.execute(updateStatusSql, [generateOtp, otpExpiresAt, user.customer_id]);
+        await sendToken(user, res, generateOtp, 200)
+        // res.status(200).json({
+        //     message: 'OTP sent successfully.',
+        //     otp_expiry: otpExpiresAt,
+        //     success: true,
+        //     data: user,
+        //     otp: generateOtp,
+        // });
+
     } catch (error) {
         console.error('Error logging in:', error.message);
         res.status(500).json({ message: 'Internal Server Error.' });
-
     }
-}
+};
 
 exports.logout = async (req, res) => {
     try {

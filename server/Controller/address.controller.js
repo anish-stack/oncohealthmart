@@ -13,21 +13,21 @@ exports.addNewAddress = async (req, res) => {
         const { city, state, pincode, house_no, stree_address, type } = req.body;
 
         // Check for missing fields
-        if (!city || !state || !pincode || !house_no || !stree_address || !type) {
+        if (!city || !pincode || !house_no || !stree_address || !type) {
             return res.status(400).json({ message: "All fields are required." });
         }
 
         // SQL Query
         const sqlQuery = `
-            INSERT INTO cp_addresses (user_id, city, state, pincode, house_no, stree_address, type) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO cp_addresses (user_id, city, pincode, house_no, stree_address, type) 
+            VALUES (?, ?, ?, ?, ?, ?)
         `;
 
 
         const [result] = await pool.execute(sqlQuery, [
             userId,
             city,
-            state,
+
             pincode,
             house_no,
             stree_address,
@@ -74,10 +74,10 @@ exports.updateMyAddress = async (req, res) => {
         }
 
         const addressId = parseInt(req.params.addressId);
-        
+
         // Destructure data from request body
-        const { city, state, pincode, house_no, stree_address, type } = req.body;
-        
+        const { city, pincode, house_no, stree_address, type } = req.body;
+
         // Initialize an array to hold values for the query and a string to build the SET clause dynamically
         const updateFields = [];
         const values = [];
@@ -87,10 +87,7 @@ exports.updateMyAddress = async (req, res) => {
             updateFields.push("city = ?");
             values.push(city);
         }
-        if (state) {
-            updateFields.push("state = ?");
-            values.push(state);
-        }
+
         if (pincode) {
             updateFields.push("pincode = ?");
             values.push(pincode);
@@ -127,7 +124,7 @@ exports.updateMyAddress = async (req, res) => {
         await pool.execute(sqlQuery, values);
 
         return res.status(200).json({ message: "Address updated successfully." });
-        
+
     } catch (error) {
         console.error('Error updating address:', error);
         return res.status(500).json({ message: "Internal server error." });
@@ -141,7 +138,7 @@ exports.deleteMyAddress = async (req, res) => {
             return res.status(401).json({ message: "Unauthorized. User not found." });
         }
         const addressId = parseInt(req.params.addressId);
-        
+
         // SQL Query
         const sqlQuery = `
             DELETE FROM cp_addresses
@@ -149,9 +146,43 @@ exports.deleteMyAddress = async (req, res) => {
         `;
         await pool.execute(sqlQuery, [userId, addressId]);
         return res.status(200).json({ message: "Address deleted successfully." });
-        
+
     } catch (error) {
         console.error('Error deleting address:', error);
         return res.status(500).json({ message: "Internal server error." });
     }
 }
+
+exports.check_area_availability = async (req, res) => {
+    try {
+        const { city } = req.body;
+
+
+        if (!city || city.trim() === "") {
+            return res.status(400).json({ success: false, message: "City name is required" });
+        }
+
+
+        const query = `SELECT * FROM cp_serviceable_city WHERE city = ? AND status = 1`;
+        const [result] = await pool.execute(query, [city]);
+
+
+        if (result.length > 0) {
+            return res.status(200).json({
+                success: true,
+                data: result[0],
+                message: `Good news! We deliver to '${city}' and your order will arrive in ${result[0]?.E_T_D}.`
+            });
+        } else {
+            return res.status(404).json({
+                success: false,
+                message: `We’re sorry, but the city '${city}' is not currently in our serviceable areas. Please check back later or contact our support team for more details.`
+            });
+        }
+
+    } catch (error) {
+
+        console.error("Error checking area availability:", error);
+        return res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};

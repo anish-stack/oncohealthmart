@@ -227,37 +227,37 @@ exports.getSearchByInput = async (req, res) => {
 
         // Sanitize and extract the search term
         const term = req.query.q ? req.query.q.replace(/'/g, "''") : '';
-        console.log(term)
+        console.log(term);
 
-
-        // Fetch search items
+        // Fetch search items with sorting: prioritize products starting with the term
         const searchItemsQuery = `
-      SELECT * FROM cp_product 
-      WHERE (
-        product_name LIKE ? OR 
-        salt LIKE ? OR 
-        company_name LIKE ?
-      )
-      AND status = 'Active' 
-      ORDER BY product_name 
-      LIMIT ? OFFSET ?
-    `;
-        const [allProducts] = await pool.query(searchItemsQuery, [`%${term}%`, `%${term}%`, `%${term}%`, limit, offset]);
+            SELECT * FROM cp_product 
+            WHERE (
+                product_name LIKE ? OR 
+                salt LIKE ? OR 
+                company_name LIKE ?
+            )
+            AND status = 'Active'
+            ORDER BY 
+                CASE 
+                    WHEN product_name LIKE ? THEN 1  
+                    ELSE 2                          
+                END,
+                product_name
+            LIMIT ? OFFSET ?
+        `;
 
-       
-        // Fetch total rows for pagination
-        const totalRowsQuery = `
-      SELECT COUNT(*) AS total 
-      FROM cp_product 
-      WHERE (
-        product_name LIKE ? OR 
-        salt LIKE ? OR 
-        company_name LIKE ?
-      )
-      AND status = 'Active'
-    `;
+        const [allProducts] = await pool.query(searchItemsQuery, [
+            `%${term}%`,
+            `%${term}%`,
+            `%${term}%`,
+            `${term}%`, // Match terms that start with the input
+            limit,
+            offset
+        ]);
+
+        // Update image URLs if they exist
         const updatedProducts = allProducts.map(product => {
-            // Check each image field and only update if it has a valid value
             if (product.image_1) {
                 product.image_1 = `https://www.oncohealthmart.com${process.env.DIRECTORY_img_upload}/${product.image_1}`;
             }
@@ -275,7 +275,23 @@ exports.getSearchByInput = async (req, res) => {
             }
             return product;
         });
-        const [totalRowsResult] = await pool.query(totalRowsQuery, [`%${term}%`, `%${term}%`, `%${term}%`]);
+
+        // Fetch total rows for pagination
+        const totalRowsQuery = `
+            SELECT COUNT(*) AS total 
+            FROM cp_product 
+            WHERE (
+                product_name LIKE ? OR 
+                salt LIKE ? OR 
+                company_name LIKE ?
+            )
+            AND status = 'Active'
+        `;
+        const [totalRowsResult] = await pool.query(totalRowsQuery, [
+            `%${term}%`,
+            `%${term}%`,
+            `%${term}%`
+        ]);
         const totalRows = totalRowsResult[0]?.total || 0;
 
         // Send the response
@@ -317,14 +333,14 @@ exports.getReviews = async (req, res) => {
 
 exports.getNews = async (req, res) => {
     try {
-    
+
         const sqlQuery = 'SELECT * FROM cp_news_table WHERE status = "active" ORDER BY created_at DESC';
 
         const [news] = await pool.execute(sqlQuery);
 
         res.status(200).json({ message: 'News fetched successfully', data: news });
     } catch (error) {
- 
+
         console.error('Error fetching news:', error);
         res.status(500).json({ message: 'An error occurred while fetching news', error: error.message });
     }
