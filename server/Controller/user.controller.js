@@ -3,12 +3,12 @@ const Pool = require('../Database/db');
 const OtpService = require('../service/otp.service');
 const moment = require('moment');
 const sendToken = require('../utils/SendToken');
+const sendTemplateMessage = require('../utils/sendTemplateMessage');
 
 exports.register = async (req, res) => {
     try {
         const { customer_name, password, email_id, mobile, platform } = req.body;
 
-        // Validate input fields
         const errors = [];
         if (!customer_name) errors.push('Customer name is required.');
         if (!password) errors.push('Password is required.');
@@ -77,6 +77,89 @@ exports.register = async (req, res) => {
 };
 
 
+exports.PrsecRegister = async (req, res) => {
+    try {
+        const { customer_name, password, email_id, mobile, platform } = req.body;
+
+        const errors = [];
+        if (!customer_name) errors.push('Customer name is required.');
+
+        if (!email_id) errors.push('Email ID is required.');
+        if (!mobile) errors.push('Mobile number is required.');
+        if (!platform) errors.push('Platform is required.');
+
+        if (errors.length > 0) {
+            console.log(errors)
+            return res.status(400).json({ errors });
+        }
+
+
+
+        const registration_date = new Date();
+        const flag = 'Customer';
+        const status = 'Inactive';
+
+        // Check if user already exists
+        const userCheckSql = `
+            SELECT * FROM cp_customer
+            WHERE email_id =? OR mobile =?
+        `;
+        const userCheckValues = [email_id, mobile];
+        const [userExists] = await Pool.execute(userCheckSql, userCheckValues);
+        // console.log(userExists)
+        if (userExists && userExists.length > 0) {
+            return res.status(400).json({
+                errors: ['Email ID or Mobile number already registered.'],
+            });
+        }
+        const hashedPassword = crypto.createHash('sha1').update(password).digest('hex');
+
+        // Generate OTP
+        const otpService = new OtpService();
+        const generateOtp = crypto.randomInt(100000, 999999);
+        const currentTime = new Date();
+        const otpExpiresAt = new Date(currentTime.getTime() + 5 * 60 * 1000);
+        console.log('Generated OTP:', generateOtp + 'And Expiry:', otpExpiresAt);
+
+        // Send OTP via SMS
+        try {
+            await otpService.sendOtp(`+91${mobile}`, 'RegistrationConfirmation', generateOtp);
+            console.log('OTP sent successfully');
+        } catch (err) {
+            console.error('Error sending OTP:', err.message);
+            return res.status(500).json({ message: 'Error sending OTP. Please try again later.' });
+        }
+
+        // Save the user to the database
+        const sql = `
+        INSERT INTO cp_customer (customer_name, password, email_id, mobile, registration_date, flag, status, platform,otp,otp_expires)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+        const values = [customer_name, hashedPassword, email_id, mobile, registration_date, flag, status, platform, generateOtp, otpExpiresAt];
+        const [result] = await Pool.execute(sql, values);
+
+        const userFound = `
+            SELECT * FROM cp_customer
+            WHERE email_id =? OR mobile =?
+        `;
+        const userCheck = [email_id, mobile];
+        const [user] = await Pool.execute(userFound, userCheck);
+
+        await sendToken(user, res, generateOtp, 200)
+
+        // res.status(201).json({
+        //     message: 'User registered successfully. OTP has been sent.',
+        //     userId: result.insertId,
+        // });
+
+    } catch (error) {
+        console.error('Error registering user:', error.message);
+        res.status(500).json({ message: 'Internal Server Error.' });
+    }
+};
+
+
+
 
 exports.VerifyOtp = async (req, res) => {
     try {
@@ -86,9 +169,9 @@ exports.VerifyOtp = async (req, res) => {
         if (type === 'change_password') {
             const { customer_id, password, otp } = req.body;
 
-            // if (!password || !otp) {
-            //     return res.status(400).json({ message: 'Password and OTP are required.' });
-            // }
+            if (!password || !otp) {
+                return res.status(400).json({ message: 'Password and OTP are required.' });
+            }
 
             const userCheckSql = `
                 SELECT * FROM cp_customer
@@ -101,9 +184,9 @@ exports.VerifyOtp = async (req, res) => {
             }
 
 
-            // if (userExists[0].otp !== otp) {
-            //     return res.status(400).json({ message: 'Invalid OTP.' });
-            // }
+            if (userExists[0].otp !== otp) {
+                return res.status(400).json({ message: 'Invalid OTP.' });
+            }
 
 
             const hashedPassword = crypto.createHash('sha1').update(password).digest('hex');
@@ -157,6 +240,11 @@ exports.VerifyOtp = async (req, res) => {
             await Pool.execute(updateStatusSql, [userId]);
 
             res.status(200).json({ message: 'OTP verified successfully.' });
+            const data = {
+                mobile: user?.mobile,
+                templatename: 'onboarding'
+            }
+            sendTemplateMessage(data)
         }
     } catch (error) {
         console.error('Error verifying OTP:', error.message);
@@ -193,7 +281,6 @@ exports.resendOtp = async (req, res) => {
         const generateOtp = crypto.randomInt(100000, 999999);
         const currentTime = new Date();
         const otpExpiresAt = new Date(currentTime.getTime() + 5 * 60 * 1000);
-        console.log('Generated OTP:', generateOtp + 'And Expiry:', otpExpiresAt);
 
 
         try {
@@ -212,7 +299,7 @@ exports.resendOtp = async (req, res) => {
 
         await Pool.execute(updateStatusSql, [generateOtp, otpExpiresAt, userId]);
 
-        res.status(200).json({ message: 'OTP resent successfully.',otp:generateOtp });
+        res.status(200).json({ message: 'OTP resent successfully.', otp: generateOtp });
 
 
     } catch (error) {
@@ -282,9 +369,9 @@ exports.login = async (req, res) => {
         }
 
         const user = userExists[0];
-        if (user.status === 'Inactive') {
-            return res.status(401).json({ message: 'Please Verify Your Mobile Number To Login Your Account' });
-        }
+        // if (user.status === 'Inactive') {
+        //     return res.status(401).json({ message: 'Please Verify Your Mobile Number To Login Your Account' });
+        // }
 
         const otpService = new OtpService();
         const generateOtp = crypto.randomInt(100000, 999999);
@@ -334,29 +421,34 @@ exports.logout = async (req, res) => {
 
 exports.updateDetails = async (req, res) => {
     try {
-        const userId = req.user.id?.customer_id;
+        let userId
+        if (Array.isArray(req.user.id)) {
+            userId = req.user.id[0]?.customer_id;
+        } else {
+            userId = req.user.id?.customer_id;
+        }
         if (!userId) {
             return res.status(401).json({ message: 'Please login to access this resource' });
         }
-
+        console.log(userId)
+        console.log(req.body)
 
         const findUserSql = `
             SELECT * FROM cp_customer WHERE customer_id = ?
         `;
         const [userExists] = await Pool.execute(findUserSql, [userId]);
-
+        // console.log(userExists)
         if (userExists.length === 0) {
             return res.status(404).json({ message: 'User not found' });
         }
 
         const user = userExists[0];
 
-        // Get the fields from the request body
+
+
         const updatedFields = req.body;
         const fieldsToUpdate = [];
-
         const values = [];
-
 
         if (updatedFields.customer_name && updatedFields.customer_name !== user.customer_name) {
             fieldsToUpdate.push('customer_name = ?');
@@ -366,19 +458,25 @@ exports.updateDetails = async (req, res) => {
             fieldsToUpdate.push('email_id = ?');
             values.push(updatedFields.email_id);
         }
-        if (updatedFields.mobile && updatedFields.mobile !== user.mobile) {
-            fieldsToUpdate.push('mobile = ?');
-            values.push(updatedFields.mobile);
-        }
-        if (updatedFields.address && updatedFields.address !== user.address) {
-            fieldsToUpdate.push('address = ?');
-            values.push(updatedFields.address);
-        }
-        if (updatedFields.pincode && updatedFields.pincode !== user.pincode) {
-            fieldsToUpdate.push('pincode = ?');
-            values.push(updatedFields.pincode);
-        }
 
+        let otpGenerated = false;
+        if (updatedFields.mobile && updatedFields.mobile !== user.mobile) {
+            fieldsToUpdate.push('new_mobile = ?');
+            values.push(updatedFields.mobile);
+            const otpService = new OtpService();
+            const generateOtp = crypto.randomInt(100000, 999999);
+            const currentTime = new Date();
+            const otpExpiresAt = new Date(currentTime.getTime() + 5 * 60 * 1000);
+
+            try {
+                await otpService.sendOtp(`+91${updatedFields.mobile}`, 'RegistrationConfirmation', generateOtp);
+                console.log('OTP sent successfully');
+                otpGenerated = true;
+            } catch (err) {
+                console.error('Error sending OTP:', err.message);
+                return res.status(500).json({ message: 'Error sending OTP. Please try again later.' });
+            }
+        }
 
         if (fieldsToUpdate.length > 0) {
             const updateUserSql = `
@@ -389,22 +487,30 @@ exports.updateDetails = async (req, res) => {
             values.push(userId);
 
             await Pool.execute(updateUserSql, values);
-            return res.status(200).json({ message: 'User details updated successfully' });
+            return res.status(200).json({
+                message: 'User details updated successfully',
+                otpSent: otpGenerated ? 'OTP sent to new mobile number' : undefined
+            });
         } else {
             return res.status(400).json({ message: 'No details to update' });
         }
-
     } catch (error) {
         console.error('Error updating user details:', error.message);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 };
 
+
 exports.getMyProfile = async (req, res) => {
     try {
-        // console.log("i am hit",req.user)
-        const userId = req.user.id?.customer_id;
-        console.log(userId)
+        let userId;
+
+        if (Array.isArray(req.user.id)) {
+            userId = req.user.id[0]?.customer_id;
+        } else {
+            userId = req.user.id?.customer_id;
+        }
+
         if (!userId) {
             return res.status(401).json({ message: 'Please login to access this resource' });
         }

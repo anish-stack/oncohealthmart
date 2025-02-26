@@ -1,11 +1,13 @@
 const express = require('express');
 const multer = require('multer')
-const { register, VerifyOtp, login, logout, forgotPassword, updateDetails, getMyProfile, resendOtp } = require('../Controller/user.controller');
+const { register, VerifyOtp, login, logout, forgotPassword, updateDetails, getMyProfile, resendOtp, PrsecRegister } = require('../Controller/user.controller');
 const { Protect } = require('../Middleware/Protect');
 const { getAllCategory, GetAllProduct, getSingleProduct, GetAllActiveBanners, GetContentOfPage, getSearchByInput, getReviews, getNews } = require('../Controller/get.controller');
 const { GetMyOrder, UploadPrescription, checkCouponCode, CreateOrder, VerifyPaymentOrder, Create_repeat_Order, get_all_order } = require('../Controller/Order.controller');
 const { addNewAddress, getMyAddresses, updateMyAddress, deleteMyAddress, check_area_availability } = require('../Controller/address.controller');
 const { FindAllCoupons } = require('../Controller/Coupons.Controller');
+const { upload_prescriptions, get_my_uploaded_presc } = require('../Controller/Prescriptions');
+const { CreateHotDeals, GetAllDeals, DeleteDeal, UpdateDeal, GetSingleDealById } = require('../Controller/HotDeals');
 const router = express.Router()
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -15,12 +17,13 @@ const upload = multer({
 
 // User routes
 router.post('/register-user', register)
+router.post('/register-prescribe_user', PrsecRegister)
 router.post('/otp-user-verify', VerifyOtp)
 router.post('/user-login', login)
 router.post('/resend-otp', resendOtp)
 
 router.post('/user-logout', Protect, logout)
-router.patch('/user-update', Protect, updateDetails)
+router.post('/user-update', Protect, updateDetails)
 router.post('/forget-password', forgotPassword)
 router.get('/my-profile', Protect, getMyProfile)
 
@@ -56,6 +59,9 @@ router.get('/getSearchByInput', getSearchByInput)
 router.get('/getReviews', getReviews)
 router.get('/getNews', getNews)
 
+// Orders Via Prescription
+router.post('/upload', upload.array('prescription', 5), Protect, upload_prescriptions);
+router.get('/get-my-presc', Protect, get_my_uploaded_presc);
 
 //Area Avaailablity 
 router.get('/check_coupons', FindAllCoupons)
@@ -67,5 +73,15 @@ router.post('/check_area_availability', check_area_availability)
 router.post('/make-a-order', Protect, upload.single('file'), CreateOrder)
 router.post('/repeat_order/:id', Protect, Create_repeat_Order)
 router.post('/verify-payment', VerifyPaymentOrder)
+
+
+
+// Hot deals
+
+router.post('/create-hot-deals', upload.single('file'), CreateHotDeals)
+router.get('/get-hot-deals', GetAllDeals)
+router.get('/get-hot-deal', GetSingleDealById)
+router.delete('/delete-hot-deals', DeleteDeal)
+router.put('/update-hot-deals', upload.single('file'), UpdateDeal)
 
 module.exports = router;

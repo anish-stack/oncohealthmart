@@ -5,6 +5,7 @@ const cloudinary = require('cloudinary').v2;
 const html_to_pdf = require('html-pdf-node');
 const sendEmail = require("../utils/sendEmail");
 const fs = require('fs');
+const sendMessage = require("../utils/Send_Whatsapp");
 
 
 cloudinary.config({
@@ -152,7 +153,7 @@ exports.CreateOrder = async (req, res) => {
         // Check if user exists in the database
         const checkUserSql = `SELECT * FROM cp_customer WHERE customer_id = ?`;
         const [userExists] = await pool.execute(checkUserSql, [userId]);
-        if (userExists.length === 0) {
+        if (userExists?.length === 0) {
             return res.status(404).json({ message: 'User not found.' });
         }
 
@@ -170,10 +171,10 @@ exports.CreateOrder = async (req, res) => {
             cart,
             payment_mode = 'Razorpay',
         } = req.body;
-        console.log(cart)
 
 
-        if (!cart?.items || cart?.items.length === 0) {
+
+        if (!cart?.items || cart?.items?.length === 0) {
             return res.status(400).json({ message: 'Product details are required.' });
         }
 
@@ -294,6 +295,8 @@ exports.CreateOrder = async (req, res) => {
             // console.log(orderValuesTemp)
 
             const saveOrder = await pool.execute(saveOrderInTemp, orderValuesTemp);
+            let items = [];
+            let totalPrice = 0;
 
             for (const item of ProductInOrder) {
                 const orderDetailsValues = [
@@ -306,39 +309,85 @@ exports.CreateOrder = async (req, res) => {
                     item.tax_percent,
                     item.tax_amount
                 ];
-                try {
 
-                    const deatils = await pool.execute(sqlOrderDetails, orderDetailsValues);
-                    console.log("deatils", deatils)
+
+                items.push(`🛍 *${item.product_name}* - ₹${item.unit_price} x ${item.unit_quantity}`);
+
+                // Calculate total price
+                totalPrice += (item.unit_price * item.unit_quantity) + item.tax_amount;
+
+                try {
+                    const details = await pool.execute(sqlOrderDetails, orderDetailsValues);
+                    console.log("details", details);
                 } catch (error) {
                     console.error('Error inserting product:', error);
                 }
             }
+
 
 
             return res.status(201).json({ message: 'Order created successfully.Please Pay !!!', sendOrder });
         } else {
-            const orderPlaced = await pool.execute(saveOrderSql, orderValues);
-            for (const item of ProductInOrder) {
-                const orderDetailsValues = [
-                    orderPlaced[0].insertId,
-                    item.product_id,
-                    item.product_name,
-                    item.product_image,
-                    item.unit_price,
-                    item.unit_quantity,
-                    item.tax_percent,
-                    item.tax_amount
-                ];
-                try {
+            try {
+                // Save order details
+                const [orderPlaced] = await pool.execute(saveOrderSql, orderValues);
+                console.log("Order placed successfully By COD:", orderPlaced);
 
-                    const deatils = await pool.execute(sqlOrderDetails, orderDetailsValues);
-                    console.log("deatils", deatils)
-                } catch (error) {
-                    console.error('Error inserting product:', error);
+                let items = []; // Initialize items array
+                let totalAmount = 0; // Track total amount
+
+                for (const item of ProductInOrder) {
+                    const orderDetailsValues = [
+                        orderPlaced.insertId,
+                        item.product_id,
+                        item.product_name,
+                        item.product_image,
+                        item.unit_price,
+                        item.unit_quantity,
+                        item.tax_percent,
+                        item.tax_amount
+                    ];
+
+                    try {
+                        const details = await pool.execute(sqlOrderDetails, orderDetailsValues);
+                        console.log(`Product inserted: ${item.product_name}`, details);
+                    } catch (error) {
+                        console.error(`Error inserting product ${item.product_name}:`, error);
+                    }
+
+                    // Add item details for the message
+                    items.push(`🛍 *${item.product_name}* - ₹${item.unit_price} x ${item.unit_quantity}`);
+
+                    // Calculate total price
+                    totalAmount += (item.unit_price * item.unit_quantity) + item.tax_amount;
                 }
+
+
+                const message = `🎉 *Order Confirmed!* \n\nThank you for shopping with *Oncomart*! 🛒\n\n✅ Your order has been successfully placed.\n\n🛍 *Order Details:* \n${items.join("\n")}\n\n🚚 We will share tracking details soon.\n📦 Stay tuned for updates!\n\nHappy Shopping! 😊`;
+
+                console.log("Order confirmation message:", message);
+
+                if (!userExists[0]?.mobile) {
+                    console.error("Error: Customer phone number not found.");
+                    return res.status(400).json({ error: "Customer phone number is missing." });
+                }
+
+                console.log("Sending message to:", userExists[0].mobile);
+
+                const data = await sendMessage({
+                    mobile: userExists[0].mobile,
+                    msg: message
+                });
+
+                console.log("Message sent response:", data);
+
+                return res.status(201).json({ message: 'Order created successfully.', orderPlaced });
+
+            } catch (error) {
+                console.error("Error creating order:", error);
+                return res.status(500).json({ error: "Internal Server Error" });
             }
-            return res.status(201).json({ message: 'Order created successfully.', orderPlaced })
+
         }
 
 
@@ -537,7 +586,17 @@ exports.VerifyPaymentOrder = async (req, res) => {
         </body>`
 
 
+        const message = `🛒 *Order Confirmation*\n\n📌 *Order ID:* ${order_details_after?.transaction_number}\n📅 *Date:* ${new Date(order_details_after?.order_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n✅ *Status:* ${order_details_after?.status}\n\n📍 *Shipping Details:*\n👤 *Name:* ${order_details_after?.customer_shipping_name}\n🏠 *Address:* ${order_details_after?.customer_shipping_address}\n📮 *PIN:* ${order_details_after?.customer_shipping_pincode}\n📞 *Phone:* ${order_details_after?.customer_shipping_phone}\n\n🛍️ *Order Details:*\n${order_details_after?.details.map(item => `🔹 *${item.product_name}*\n   - Quantity: ${item.unit_quantity}\n   - Price: ₹${item.unit_price.toFixed(2)}`).join('\n')}\n\n💰 *Payment Summary:*\n💵 *Subtotal:* ₹${order_details_after?.subtotal.toFixed(2)}\n🚚 *Shipping:* ₹${order_details_after?.shipping_charge.toFixed(2)}\n${order_details_after?.coupon_discount ? `🎟️ *Discount (${order_details_after.coupon_code}):* -₹${order_details_after.coupon_discount.toFixed(2)}` : ''}\n💳 *Total:* ₹${order_details_after?.amount.toFixed(2)}\n\n💳 *Payment Method:* ${order_details_after?.payment_mode}\n\n🙏 *Thank you for shopping with Onco Health Mart! ❤️*\n📞 For any queries, contact our customer service.`
 
+        console.log("Order confirmation message:", message);
+
+
+        const dataSend = await sendMessage({
+            mobile: order_details_after?.customer_shipping_phone,
+            msg: message
+        });
+
+        console.log("Message sent response:", dataSend);
 
 
         const deleteTempOrderQuery = `DELETE FROM cp_order_temp WHERE razorpayOrderID = ?`;
@@ -1012,3 +1071,4 @@ function mergeOrdersWithDetails(orders, orderDetailsMap) {
         details: orderDetailsMap[order.order_id] || [],
     }));
 }
+

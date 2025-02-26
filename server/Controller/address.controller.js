@@ -157,7 +157,7 @@ exports.check_area_availability = async (req, res) => {
     try {
         const { city } = req.body;
 
-
+        console.log("City",city)
         if (!city || city.trim() === "") {
             return res.status(400).json({ success: false, message: "City name is required" });
         }
@@ -166,7 +166,7 @@ exports.check_area_availability = async (req, res) => {
         const query = `SELECT * FROM cp_serviceable_city WHERE city = ? AND status = 1`;
         const [result] = await pool.execute(query, [city]);
 
-
+        console.log("result",result)
         if (result.length > 0) {
             return res.status(200).json({
                 success: true,

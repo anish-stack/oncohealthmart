@@ -5,8 +5,8 @@ const { validatePaymentVerification } = require('razorpay/dist/utils/razorpay-ut
 const pool = require("../Database/db");
 
 const instance = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_v7VXP3dTD3QjbB',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || '6FxMavtMShPIczOrWxH0hSEv',
+    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_2iMyFYCzazJLkS',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || 'M1lJWwTICloppBATHXV9kg1q',
 });
 
 class CreateOrderRazorpay {
@@ -47,7 +47,7 @@ class PaymentVerification {
             const isValidSignature = validatePaymentVerification(
                 { order_id: razorpay_order_id, payment_id: razorpay_payment_id },
                 razorpay_signature,
-                process.env.RAZORPAY_KEY_SECRET || "6FxMavtMShPIczOrWxH0hSEv"
+                process.env.RAZORPAY_KEY_SECRET || "M1lJWwTICloppBATHXV9kg1q"
             );
 
             if (!isValidSignature) {
