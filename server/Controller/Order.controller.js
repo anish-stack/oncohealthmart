@@ -753,10 +753,10 @@ exports.checkCouponCode = async (req, res) => {
 
 
 exports.Create_repeat_Order = async (req, res) => {
-    console.log("i am creating a repeat order")
+
     try {
         const re_order = req.params.id
-        console.log("order id", re_order)
+
         const userId = req.user?.id?.customer_id;
 
 
@@ -764,7 +764,7 @@ exports.Create_repeat_Order = async (req, res) => {
             return res.status(400).json({ message: 'Please log in to complete the order.' });
         }
 
-        // Check if user exists in the database
+
         const checkUserSql = `SELECT * FROM cp_customer WHERE customer_id = ?`;
         const [userExists] = await pool.execute(checkUserSql, [userId]);
         if (userExists.length === 0) {
@@ -825,7 +825,7 @@ exports.Create_repeat_Order = async (req, res) => {
             status: 'Pending',
         };
 
-        console.log("Order", Order)
+
 
         const ProductInOrder = orderDetails.map((item) => ({
             product_id: item?.product_id,
