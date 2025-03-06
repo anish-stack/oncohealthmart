@@ -14,7 +14,7 @@ const axios = require('axios');
 dotenv.config();
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 9500
 
 app.use(helmet());
 app.use(cors({
