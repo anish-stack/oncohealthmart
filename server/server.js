@@ -125,6 +125,22 @@ app.post('/Fetch-Current-Location', async (req, res) => {
 
 
 app.use('/api/v1', router);
+app.get('/api/v1/get/api/key', async (req, res) => {
+    try {
+        return res.status(200).json({
+            success: true,
+            data: process.env.RAZARPAY_KEY_ID,
+            message: "API Key fetched successful"
+        })
+    } catch (error) {
+        console.error('Error fetching API Key:', error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch API Key",
+        });
+
+    }
+})
 
 app.use((req, res) => {
     res.status(404).json({ success: false, message: 'The requested route was not found on this server.' });
@@ -139,4 +155,4 @@ app.use((err, req, res, next) => {
 
 app.listen(port, '0.0.0.0', () => {
     console.log(`Server is running on port ${port}`);
-  });
+});

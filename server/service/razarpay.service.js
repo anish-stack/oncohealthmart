@@ -38,7 +38,7 @@ class PaymentVerification {
         try {
             const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = data;
 
-        
+
             if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
                 throw new Error('Invalid payment data');
             }
@@ -57,7 +57,7 @@ class PaymentVerification {
 
             return true
         } catch (error) {
-            
+
             console.error('Error verifying payment:', error.message);
             throw new Error('Error verifying payment');
         }
