@@ -8,6 +8,7 @@ const { addNewAddress, getMyAddresses, updateMyAddress, deleteMyAddress, check_a
 const { FindAllCoupons } = require('../Controller/Coupons.Controller');
 const { upload_prescriptions, get_my_uploaded_presc } = require('../Controller/Prescriptions');
 const { CreateHotDeals, GetAllDeals, DeleteDeal, UpdateDeal, GetSingleDealById } = require('../Controller/HotDeals');
+const { getSetting } = require('../Controller/settings.controller');
 const router = express.Router()
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -74,6 +75,8 @@ router.post('/make-a-order', Protect, upload.single('file'), CreateOrder)
 router.post('/repeat_order/:id', Protect, Create_repeat_Order)
 router.post('/verify-payment', VerifyPaymentOrder)
 
+// Fetch Setting
+router.get('/fetch-settings', getSetting)
 
 
 // Hot deals

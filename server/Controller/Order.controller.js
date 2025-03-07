@@ -28,7 +28,7 @@ exports.GetMyOrder = async (req, res) => {
             return res.status(404).json({ message: 'No orders found' });
         }
 
-        // Sort orders by date
+
         orders.sort((a, b) => new Date(b.order_date) - new Date(a.order_date));
 
         // Pagination
@@ -172,7 +172,8 @@ exports.CreateOrder = async (req, res) => {
             payment_mode = 'Razorpay',
         } = req.body;
 
-
+        console.log("req.body", req.body)
+        console.log("req.Rx_id", Rx_id)
 
         if (!cart?.items || cart?.items?.length === 0) {
             return res.status(400).json({ message: 'Product details are required.' });
@@ -185,10 +186,15 @@ exports.CreateOrder = async (req, res) => {
         if (!patientName || !patientPhone) {
             return res.status(400).json({ message: 'Patient details are required.' });
         }
+        const query = `SELECT * FROM cp_settings`
+        const [rows] = await pool.execute(query)
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No settings found.' });
+        }
+        const setting = rows[0]
 
-
-        const shippingCharge = cart?.totalPrice > 1500 ? 0 : 200;
-
+        const shippingCharge = cart?.totalPrice > setting?.shipping_threshold ? 0 : Number(setting?.shipping_charge);
+        const extraCharges = paymentOption === "COD" ? setting?.cod_fee : 0
         const Order = {
             order_date: new Date(),
             orderFrom: 'Application',
@@ -212,12 +218,12 @@ exports.CreateOrder = async (req, res) => {
             coupon_code: cart?.items?.couponCode || '',
             coupon_discount: cart?.items?.discount || 0,
             shipping_charge: shippingCharge,
-            additional_charge: 0,
+            additional_charge: extraCharges,
             payment_mode: payment_mode,
             payment_option: paymentOption || 'Online',
             status: 'Pending',
         };
-
+        console.log("Order", Order)
         const ProductInOrder = cart?.items.map((item) => ({
             product_id: item?.ProductId,
             product_name: item?.title,
@@ -330,8 +336,15 @@ exports.CreateOrder = async (req, res) => {
         } else {
             try {
                 // Save order details
+
                 const [orderPlaced] = await pool.execute(saveOrderSql, orderValues);
-                console.log("Order placed successfully By COD:", orderPlaced);
+
+                // Format the query by replacing `?` placeholders with actual values
+                const lastQuery = saveOrderSql.replace(/\?/g, (_, index) =>
+                    typeof orderValues[index] === "string" ? `'${orderValues[index]}'` : orderValues[index]
+                );
+
+                console.log("Last Executed Query:", lastQuery);
 
                 let items = []; // Initialize items array
                 let totalAmount = 0; // Track total amount
