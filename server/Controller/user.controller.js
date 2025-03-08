@@ -369,12 +369,16 @@ exports.login = async (req, res) => {
         }
 
         const user = userExists[0];
-        // if (user.status === 'Inactive') {
-        //     return res.status(401).json({ message: 'Please Verify Your Mobile Number To Login Your Account' });
-        // }
 
         const otpService = new OtpService();
-        const generateOtp = crypto.randomInt(100000, 999999);
+        let generateOtp;
+
+        if (mobile === '7217619794') {
+            generateOtp = 123456; // Static OTP for this number
+        } else {
+            generateOtp = crypto.randomInt(100000, 999999); // Generate random OTP
+        }
+
         const currentTime = new Date();
         const otpExpiresAt = new Date(currentTime.getTime() + 5 * 60 * 1000);
 
@@ -394,20 +398,14 @@ exports.login = async (req, res) => {
         WHERE customer_id = ?
         `;
         await Pool.execute(updateStatusSql, [generateOtp, otpExpiresAt, user.customer_id]);
-        await sendToken(user, res, generateOtp, 200)
-        // res.status(200).json({
-        //     message: 'OTP sent successfully.',
-        //     otp_expiry: otpExpiresAt,
-        //     success: true,
-        //     data: user,
-        //     otp: generateOtp,
-        // });
+        await sendToken(user, res, generateOtp, 200);
 
     } catch (error) {
         console.error('Error logging in:', error.message);
         res.status(500).json({ message: 'Internal Server Error.' });
     }
 };
+
 
 exports.logout = async (req, res) => {
     try {
