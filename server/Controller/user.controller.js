@@ -374,7 +374,7 @@ exports.login = async (req, res) => {
         let generateOtp;
 
         if (mobile === '7217619794') {
-            generateOtp = 123456; // Static OTP for this number
+            generateOtp = 123456; 
         } else {
             generateOtp = crypto.randomInt(100000, 999999); // Generate random OTP
         }

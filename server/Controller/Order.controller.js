@@ -223,7 +223,7 @@ exports.CreateOrder = async (req, res) => {
             payment_option: paymentOption || 'Online',
             status: 'Pending',
         };
-        console.log("Order", Order)
+
         const ProductInOrder = cart?.items.map((item) => ({
             product_id: item?.ProductId,
             product_name: item?.title,
@@ -489,7 +489,7 @@ exports.VerifyPaymentOrder = async (req, res) => {
             tempOrder.additional_charge,
             tempOrder.payment_mode,
             tempOrder.payment_option,
-            'Completed',
+            'Pending',
             'Paid',
             razorpay_payment_id,
         ];
