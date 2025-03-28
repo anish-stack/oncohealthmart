@@ -12,6 +12,7 @@ const router = require('./routes/routes');
 const axios = require('axios');
 
 dotenv.config();
+// I am Backed
 
 const app = express();
 const port = process.env.PORT || 9500
@@ -39,7 +40,9 @@ app.use(
     })
 );
 
-
+app.get('/', (req, res) => {
+    res.send('Hello, World!')
+})
 
 app.post('/Fetch-Current-Location', async (req, res) => {
     const { lat, lng } = req.body;
