@@ -136,3 +136,60 @@ exports.get_my_uploaded_presc = async (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+
+// Get All Prescriptions
+exports.getAllPrescriptions = async (req, res) => {
+    try {
+        const [rows] = await pool.query("SELECT * FROM cp_app_prescription");
+        res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+        console.error("Error fetching all prescriptions:", error);
+        res.status(500).json({ success: false, message: "Failed to retrieve prescriptions", error: error.message });
+    }
+};
+
+// Get Single Prescription by ID
+exports.getPrescriptionById = async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({ success: false, message: "Invalid prescription ID" });
+        }
+
+        const [rows] = await pool.query("SELECT * FROM cp_app_prescription WHERE `S.No` = ?", [id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ success: false, message: "Prescription not found" });
+        }
+
+        res.status(200).json({ success: true, data: rows[0] });
+    } catch (error) {
+        console.error("Error fetching prescription by ID:", error);
+        res.status(500).json({ success: false, message: "Failed to retrieve prescription", error: error.message });
+    }
+};
+
+// Delete Prescription by ID
+exports.deletePrescriptionById = async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+
+        if (isNaN(id) || id <= 0) {
+            return res.status(400).json({ success: false, message: "Invalid prescription ID" });
+        }
+
+        const [result] = await pool.query("DELETE FROM cp_app_prescription WHERE `S.No` = ?", [id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, message: "Prescription not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Prescription deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting prescription:", error);
+        res.status(500).json({ success: false, message: "Failed to delete prescription", error: error.message });
+    }
+};
+

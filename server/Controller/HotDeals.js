@@ -72,6 +72,8 @@ exports.CreateHotDeals = async (req, res) => {
                     await pool.query(insertQuery, values);
 
                     return res.status(200).json({
+                        success: true,
+                
                         message: "Hot Deals created successfully",
                         imageUrl: imageUrl,
                     });
@@ -81,6 +83,8 @@ exports.CreateHotDeals = async (req, res) => {
                 }
             }
         ).end(sanitizedImageBuffer);
+
+
     } catch (error) {
         console.error("CreateHotDeals Error:", error);
         return res.status(500).json({

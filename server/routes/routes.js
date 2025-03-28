@@ -4,11 +4,12 @@ const { register, VerifyOtp, login, logout, forgotPassword, updateDetails, getMy
 const { Protect } = require('../Middleware/Protect');
 const { getAllCategory, GetAllProduct, getSingleProduct, GetAllActiveBanners, GetContentOfPage, getSearchByInput, getReviews, getNews } = require('../Controller/get.controller');
 const { GetMyOrder, UploadPrescription, checkCouponCode, CreateOrder, VerifyPaymentOrder, Create_repeat_Order, get_all_order } = require('../Controller/Order.controller');
-const { addNewAddress, getMyAddresses, updateMyAddress, deleteMyAddress, check_area_availability } = require('../Controller/address.controller');
-const { FindAllCoupons } = require('../Controller/Coupons.Controller');
-const { upload_prescriptions, get_my_uploaded_presc } = require('../Controller/Prescriptions');
+const { addNewAddress, getMyAddresses, updateMyAddress, deleteMyAddress, check_area_availability, getAllAddresses, updateAnyAddress, deleteAnyAddress, getSingleAddresses } = require('../Controller/address.controller');
+const { FindAllCoupons, createCoupon, getAllCoupons, getSingleCoupon, updateCoupon, deleteCoupon } = require('../Controller/Coupons.Controller');
+const { upload_prescriptions, get_my_uploaded_presc, getAllPrescriptions, getPrescriptionById, deletePrescriptionById } = require('../Controller/Prescriptions');
 const { CreateHotDeals, GetAllDeals, DeleteDeal, UpdateDeal, GetSingleDealById } = require('../Controller/HotDeals');
 const { getSetting } = require('../Controller/settings.controller');
+const { createNews, updateNews, deleteNews } = require('../Controller/News.controller');
 const router = express.Router()
 const upload = multer({
     storage: multer.memoryStorage(),
@@ -86,5 +87,39 @@ router.get('/get-hot-deals', GetAllDeals)
 router.get('/get-hot-deal', GetSingleDealById)
 router.delete('/delete-hot-deals', DeleteDeal)
 router.put('/update-hot-deals', upload.single('file'), UpdateDeal)
+
+
+
+
+
+// ============================ADMIN ROUTES ============================ //
+router.get('/get-all-adresses', getAllAddresses)
+router.put('/update-any-adresses/:addressId', updateAnyAddress)
+router.delete('/delete-any-adresses/:addressId', deleteAnyAddress)
+router.get('/get-any-adresss/:addressId', getSingleAddresses)
+
+
+router.post('/coupons', createCoupon);
+router.get('/coupons', getAllCoupons);
+router.get('/coupons/:couponId', getSingleCoupon);
+router.put('/coupons/:couponId', updateCoupon);
+router.delete('/coupons/:couponId', deleteCoupon);
+
+
+
+
+router.post('/news', createNews);
+router.put('/news/:newsId', updateNews);
+router.delete('/news/:newsId', deleteNews);
+
+
+
+router.get("/prescriptions", getAllPrescriptions);
+router.get("/prescriptions/:id", getPrescriptionById);
+router.delete("/prescriptions/:id", deletePrescriptionById);
+
+
+
+
 
 module.exports = router;
