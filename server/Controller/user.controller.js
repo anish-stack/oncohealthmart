@@ -527,3 +527,58 @@ exports.getMyProfile = async (req, res) => {
 
     }
 }
+
+
+exports.delete_user_profile = async (req, res) => {
+    try {
+        let userId;
+
+        // Log to check if the userId is coming as expected
+        console.log("Request user:", req.user);
+
+        // Check if user ID is an array (i.e., in case of multiple user IDs)
+        if (Array.isArray(req.user?.id)) {
+            userId = req.user.id[0]?.customer_id;
+        } else {
+            userId = req.user?.id?.customer_id;
+        }
+
+        // Log userId to verify
+        console.log("User ID:", userId);
+
+        if (!userId) {
+            console.log('User is not logged in or ID is missing.');
+            return res.status(401).json({ message: 'You need to log in to delete your profile.' });
+        }
+
+        // Check if the user exists in the database
+        const findUserSql = `SELECT * FROM cp_customer WHERE customer_id = ?`;
+        const [userExists] = await Pool.execute(findUserSql, [userId]);
+
+        // Log if user is found or not
+        console.log("User found in DB:", userExists.length > 0);
+
+        if (userExists.length === 0) {
+            console.log("No user found with the provided ID.");
+            return res.status(404).json({ message: 'Oops! We couldn’t find your account.' });
+        }
+
+        // Delete the user from the database
+        const deleteUserSql = `DELETE FROM cp_customer WHERE customer_id = ?`;
+        await Pool.execute(deleteUserSql, [userId]);
+
+        // Log success message
+        console.log(`User with ID: ${userId} has been deleted successfully.`);
+
+        return res.status(200).json({
+            message: 'Your account has been deleted successfully. You cannot log in again with the same credentials.'
+        });
+
+    } catch (error) {
+        console.error("Error deleting user profile:", error);
+        return res.status(500).json({
+            message: 'Something went wrong while trying to delete your account. Please try again later.',
+            error: error.message
+        });
+    }
+};
