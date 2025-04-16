@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer')
-const { register, VerifyOtp, login, logout, forgotPassword, updateDetails, getMyProfile, resendOtp, PrsecRegister } = require('../Controller/user.controller');
+const { register, VerifyOtp, login, logout, forgotPassword, updateDetails, getMyProfile, resendOtp, PrsecRegister, delete_user_profile } = require('../Controller/user.controller');
 const { Protect } = require('../Middleware/Protect');
 const { getAllCategory, GetAllProduct, getSingleProduct, GetAllActiveBanners, GetContentOfPage, getSearchByInput, getReviews, getNews } = require('../Controller/get.controller');
 const { GetMyOrder, UploadPrescription, checkCouponCode, CreateOrder, VerifyPaymentOrder, Create_repeat_Order, get_all_order } = require('../Controller/Order.controller');
@@ -28,6 +28,8 @@ router.post('/user-logout', Protect, logout)
 router.post('/user-update', Protect, updateDetails)
 router.post('/forget-password', forgotPassword)
 router.get('/my-profile', Protect, getMyProfile)
+router.delete('/delete-my-profile', Protect, delete_user_profile)
+
 
 
 //Category routes
